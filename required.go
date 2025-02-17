@@ -97,11 +97,17 @@ func Struct(x interface{}) error {
 	}
 	var errs error
 	for _, f := range reflect.VisibleFields(v.Type()) {
-		fv := v.FieldByIndex(f.Index).Addr()
-		if x, ok := fv.Interface().(RequiredIface); ok {
+		fv := v.FieldByIndex(f.Index)
+		if x, ok := fv.Addr().Interface().(RequiredIface); ok {
 			if !x.HasValue() {
 				errs = errors.Join(errs, fmt.Errorf("field '%s' in '%s' is required", f.Name, v.Type()))
 			}
+			y := x.Value()
+			if t := reflect.TypeOf(y); t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct {
+				errs = errors.Join(errs, Struct(y))
+			}
+		} else if f.Type.Kind() == reflect.Pointer && f.Type.Elem().Kind() == reflect.Struct {
+			errs = errors.Join(errs, Struct(fv.Interface()))
 		}
 	}
 	return errs
