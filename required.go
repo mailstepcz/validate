@@ -102,8 +102,8 @@ func Struct(x interface{}) error {
 			if !x.HasValue() {
 				errs = errors.Join(errs, fmt.Errorf("field '%s' in '%s' is required", f.Name, v.Type()))
 			}
-			t := x.RequiredType()
-			if t.Kind() == reflect.Struct {
+
+			if t := x.RequiredType(); t.Kind() == reflect.Struct {
 				errs = errors.Join(errs, Struct(x.Ptr()))
 			} else if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct {
 				errs = errors.Join(errs, Struct(x.Value()))
