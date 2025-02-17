@@ -107,11 +107,29 @@ func Struct(x interface{}) error {
 				errs = errors.Join(errs, Struct(x.Ptr()))
 			} else if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct {
 				errs = errors.Join(errs, Struct(x.Value()))
+			} else if t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Pointer && t.Elem().Elem().Kind() == reflect.Struct {
+				v := reflect.ValueOf(x.Value())
+				for i := 0; i < v.Len(); i++ {
+					errs = errors.Join(errs, Struct(v.Index(i).Interface()))
+				}
+			} else if t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Struct {
+				v := reflect.ValueOf(x.Value())
+				for i := 0; i < v.Len(); i++ {
+					errs = errors.Join(errs, Struct(v.Index(i).Addr().Interface()))
+				}
 			}
 		} else if f.Type.Kind() == reflect.Struct {
 			errs = errors.Join(errs, Struct(fv.Addr().Interface()))
 		} else if f.Type.Kind() == reflect.Pointer && f.Type.Elem().Kind() == reflect.Struct {
 			errs = errors.Join(errs, Struct(fv.Interface()))
+		} else if f.Type.Kind() == reflect.Slice && f.Type.Elem().Kind() == reflect.Pointer && f.Type.Elem().Elem().Kind() == reflect.Struct {
+			for i := 0; i < fv.Len(); i++ {
+				errs = errors.Join(errs, Struct(fv.Index(i).Interface()))
+			}
+		} else if f.Type.Kind() == reflect.Slice && f.Type.Elem().Kind() == reflect.Struct {
+			for i := 0; i < fv.Len(); i++ {
+				errs = errors.Join(errs, Struct(fv.Index(i).Addr().Interface()))
+			}
 		}
 	}
 	return errs
