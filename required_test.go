@@ -16,6 +16,7 @@ type Person struct {
 type Address struct {
 	ZipCode Required[string] `json:"zipCode"`
 }
+
 type PersonNested struct {
 	Address Required[*Address] `json:"address"`
 }
