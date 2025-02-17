@@ -89,11 +89,19 @@ var (
 func Struct(x interface{}) error {
 	v := reflect.ValueOf(x)
 	if v.Kind() != reflect.Pointer {
-		return fmt.Errorf("%w: %T", ErrBadType, x)
+		return fmt.Errorf("%w: %T is not pointer", ErrBadType, x)
 	}
 	v = v.Elem()
+	if v.Kind() == reflect.Interface {
+		v = reflect.ValueOf(v)
+		if v.Kind() != reflect.Pointer {
+			return fmt.Errorf("%w: %T is not pointer", ErrBadType, x)
+		}
+		v = v.Elem()
+
+	}
 	if v.Kind() != reflect.Struct {
-		return fmt.Errorf("%w: %T", ErrBadType, x)
+		return fmt.Errorf("%w: %T is not struct", ErrBadType, x)
 	}
 	var errs error
 	for _, f := range reflect.VisibleFields(v.Type()) {
@@ -101,6 +109,15 @@ func Struct(x interface{}) error {
 		if x, ok := fv.Interface().(RequiredIface); ok {
 			if !x.HasValue() {
 				errs = errors.Join(errs, fmt.Errorf("field '%s' in '%s' is required", f.Name, v.Type()))
+			}
+
+			nestedType := x.RequiredType()
+			if x.RequiredType().Kind() != reflect.Pointer {
+				continue
+			}
+
+			if nestedType.Elem().Kind() == reflect.Struct {
+				errs = errors.Join(errs, Struct(x.Value()))
 			}
 		}
 	}
