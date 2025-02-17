@@ -21,6 +21,14 @@ type PersonNested struct {
 	Address Required[*Address] `json:"address"`
 }
 
+type Address2 struct {
+	ZipCode Required[string] `json:"zipCode"`
+}
+
+type PersonNested2 struct {
+	Address *Address2 `json:"address"`
+}
+
 func TestRequired(t *testing.T) {
 	req := require.New(t)
 
@@ -59,12 +67,36 @@ func TestRequiredNestedSuccess(t *testing.T) {
 	req.Nil(err)
 
 	req.Equal("111222", p.Address.Value().(*Address).ZipCode.value)
-
 }
+
+func TestRequiredNested2Success(t *testing.T) {
+	req := require.New(t)
+
+	var p PersonNested2
+	err := json.Unmarshal([]byte(`{"address": {"zipCode": "111222"}}`), &p)
+	req.Nil(err)
+
+	err = Struct(&p)
+	req.Nil(err)
+
+	req.Equal("111222", p.Address.ZipCode.value)
+}
+
 func TestRequiredNestedError(t *testing.T) {
 	req := require.New(t)
 
 	var p PersonNested
+	err := json.Unmarshal([]byte(`{"address": {}}`), &p)
+	req.Nil(err)
+
+	err = Struct(&p)
+	req.Error(err)
+}
+
+func TestRequiredNested2Error(t *testing.T) {
+	req := require.New(t)
+
+	var p PersonNested2
 	err := json.Unmarshal([]byte(`{"address": {}}`), &p)
 	req.Nil(err)
 
