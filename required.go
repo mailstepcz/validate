@@ -102,10 +102,14 @@ func Struct(x interface{}) error {
 			if !x.HasValue() {
 				errs = errors.Join(errs, fmt.Errorf("field '%s' in '%s' is required", f.Name, v.Type()))
 			}
-			y := x.Value()
-			if t := reflect.TypeOf(y); t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct {
-				errs = errors.Join(errs, Struct(y))
+
+			if t := x.RequiredType(); t.Kind() == reflect.Struct {
+				errs = errors.Join(errs, Struct(x.Ptr()))
+			} else if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct {
+				errs = errors.Join(errs, Struct(x.Value()))
 			}
+		} else if f.Type.Kind() == reflect.Struct {
+			errs = errors.Join(errs, Struct(fv.Addr().Interface()))
 		} else if f.Type.Kind() == reflect.Pointer && f.Type.Elem().Kind() == reflect.Struct {
 			errs = errors.Join(errs, Struct(fv.Interface()))
 		}
