@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/mailstepcz/testutils/testcond"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,28 +22,32 @@ type PersonNested struct {
 	Address Required[*Address] `json:"address"`
 }
 
-type Address2 struct {
-	ZipCode Required[string] `json:"zipCode"`
-}
-
 type PersonNested2 struct {
-	Address *Address2 `json:"address"`
-}
-
-type Address3 struct {
-	ZipCode Required[string] `json:"zipCode"`
+	Address *Address `json:"address"`
 }
 
 type PersonNested3 struct {
-	Address Address3 `json:"address"`
-}
-
-type Address4 struct {
-	ZipCode Required[string] `json:"zipCode"`
+	Address Address `json:"address"`
 }
 
 type PersonNested4 struct {
-	Address Required[Address4] `json:"address"`
+	Address Required[Address] `json:"address"`
+}
+
+type PersonNested5 struct {
+	Addresses Required[[]*Address] `json:"addresses"`
+}
+
+type PersonNested6 struct {
+	Addresses Required[[]Address] `json:"addresses"`
+}
+
+type PersonNested7 struct {
+	Addresses []*Address `json:"addresses"`
+}
+
+type PersonNested8 struct {
+	Addresses []Address `json:"addresses"`
 }
 
 func TestRequired(t *testing.T) {
@@ -53,7 +58,7 @@ func TestRequired(t *testing.T) {
 	req.Nil(err)
 	err = Struct(&p)
 	req.NotNil(err)
-	req.Equal("field 'Age' in 'validate.Person' is required", err.Error())
+	testcond.Equal(t, "field 'Age' in 'validate.Person' is required", err.Error())
 
 	err = json.Unmarshal([]byte(`{"name":"Saoirse","age":25}`), &p)
 	req.Nil(err)
@@ -68,8 +73,8 @@ func TestRequiredPtr(t *testing.T) {
 	err := json.Unmarshal([]byte(`{"name":"Saoirse"}`), &p)
 	req.NoError(err)
 
-	req.Equal(p.Name.Ptr().(*string), (*string)(p.Name.UnsafePtr()))
-	req.Equal(reflect.ValueOf(p.Name.Ptr()).UnsafePointer(), p.Name.UnsafePtr())
+	testcond.Equal(t, p.Name.Ptr().(*string), (*string)(p.Name.UnsafePtr()))
+	testcond.Equal(t, reflect.ValueOf(p.Name.Ptr()).UnsafePointer(), p.Name.UnsafePtr())
 }
 
 func TestRequiredNestedSuccess(t *testing.T) {
@@ -82,7 +87,7 @@ func TestRequiredNestedSuccess(t *testing.T) {
 	err = Struct(&p)
 	req.Nil(err)
 
-	req.Equal("111222", p.Address.Value().(*Address).ZipCode.value)
+	testcond.Equal(t, "111222", p.Address.Value().(*Address).ZipCode.value)
 }
 
 func TestRequiredNested2Success(t *testing.T) {
@@ -95,7 +100,7 @@ func TestRequiredNested2Success(t *testing.T) {
 	err = Struct(&p)
 	req.Nil(err)
 
-	req.Equal("111222", p.Address.ZipCode.value)
+	testcond.Equal(t, "111222", p.Address.ZipCode.value)
 }
 
 func TestRequiredNested3Success(t *testing.T) {
@@ -108,7 +113,7 @@ func TestRequiredNested3Success(t *testing.T) {
 	err = Struct(&p)
 	req.Nil(err)
 
-	req.Equal("111222", p.Address.ZipCode.value)
+	testcond.Equal(t, "111222", p.Address.ZipCode.value)
 }
 
 func TestRequiredNested4Success(t *testing.T) {
@@ -121,7 +126,59 @@ func TestRequiredNested4Success(t *testing.T) {
 	err = Struct(&p)
 	req.Nil(err)
 
-	req.Equal("111222", p.Address.Value().(Address4).ZipCode.value)
+	testcond.Equal(t, "111222", p.Address.Value().(Address).ZipCode.value)
+}
+
+func TestRequiredNested5Success(t *testing.T) {
+	req := require.New(t)
+
+	var p PersonNested5
+	err := json.Unmarshal([]byte(`{"addresses": [{"zipCode": "111222"}]}`), &p)
+	req.Nil(err)
+
+	err = Struct(&p)
+	req.Nil(err)
+
+	testcond.Equal(t, "111222", p.Addresses.Value().([]*Address)[0].ZipCode.value)
+}
+
+func TestRequiredNested6Success(t *testing.T) {
+	req := require.New(t)
+
+	var p PersonNested6
+	err := json.Unmarshal([]byte(`{"addresses": [{"zipCode": "111222"}]}`), &p)
+	req.Nil(err)
+
+	err = Struct(&p)
+	req.Nil(err)
+
+	testcond.Equal(t, "111222", p.Addresses.Value().([]Address)[0].ZipCode.value)
+}
+
+func TestRequiredNested7Success(t *testing.T) {
+	req := require.New(t)
+
+	var p PersonNested7
+	err := json.Unmarshal([]byte(`{"addresses": [{"zipCode": "111222"}]}`), &p)
+	req.Nil(err)
+
+	err = Struct(&p)
+	req.Nil(err)
+
+	testcond.Equal(t, "111222", p.Addresses[0].ZipCode.value)
+}
+
+func TestRequiredNested8Success(t *testing.T) {
+	req := require.New(t)
+
+	var p PersonNested8
+	err := json.Unmarshal([]byte(`{"addresses": [{"zipCode": "111222"}]}`), &p)
+	req.Nil(err)
+
+	err = Struct(&p)
+	req.Nil(err)
+
+	testcond.Equal(t, "111222", p.Addresses[0].ZipCode.value)
 }
 
 func TestRequiredNestedError(t *testing.T) {
@@ -162,6 +219,50 @@ func TestRequiredNested4Error(t *testing.T) {
 
 	var p PersonNested4
 	err := json.Unmarshal([]byte(`{"address": {}}`), &p)
+	req.Nil(err)
+
+	err = Struct(&p)
+	req.Error(err)
+}
+
+func TestRequiredNested5Error(t *testing.T) {
+	req := require.New(t)
+
+	var p PersonNested5
+	err := json.Unmarshal([]byte(`{"addresses": [{}]}`), &p)
+	req.Nil(err)
+
+	err = Struct(&p)
+	req.Error(err)
+}
+
+func TestRequiredNested6Error(t *testing.T) {
+	req := require.New(t)
+
+	var p PersonNested6
+	err := json.Unmarshal([]byte(`{"addresses": [{}]}`), &p)
+	req.Nil(err)
+
+	err = Struct(&p)
+	req.Error(err)
+}
+
+func TestRequiredNested7Error(t *testing.T) {
+	req := require.New(t)
+
+	var p PersonNested7
+	err := json.Unmarshal([]byte(`{"addresses": [{}]}`), &p)
+	req.Nil(err)
+
+	err = Struct(&p)
+	req.Error(err)
+}
+
+func TestRequiredNested8Error(t *testing.T) {
+	req := require.New(t)
+
+	var p PersonNested8
+	err := json.Unmarshal([]byte(`{"addresses": [{}]}`), &p)
 	req.Nil(err)
 
 	err = Struct(&p)
