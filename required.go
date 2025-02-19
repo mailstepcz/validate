@@ -97,6 +97,9 @@ func Struct(x interface{}) error {
 	}
 	var errs error
 	for _, f := range reflect.VisibleFields(v.Type()) {
+		if !f.IsExported() {
+			continue
+		}
 		fv := v.FieldByIndex(f.Index)
 		if x, ok := fv.Addr().Interface().(RequiredIface); ok {
 			if !x.HasValue() {
