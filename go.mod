@@ -1,11 +1,11 @@
 module github.com/mailstepcz/validate
 
-go 1.23
+go 1.24
 
-toolchain go1.24.0
+toolchain go1.24.2
 
 require (
-	github.com/mailstepcz/testutils v0.1.4
+	github.com/mailstepcz/testutils v0.1.7
 	github.com/stretchr/testify v1.10.0
 )
 
