@@ -100,22 +100,41 @@ func Struct(x interface{}) error {
 	}
 	var errs error
 	for _, f := range reflect.VisibleFields(v.Type()) {
-		fv := v.FieldByIndex(f.Index).Addr()
-		if x, ok := fv.Interface().(RequiredIface); ok {
+		if !f.IsExported() {
+			continue
+		}
+		fv := v.FieldByIndex(f.Index)
+		if x, ok := fv.Addr().Interface().(RequiredIface); ok {
 			if !x.HasValue() {
 				errs = errors.Join(errs, fmt.Errorf("field '%s' in '%s' is required", f.Name, v.Type()))
 			}
 
-			if tag := f.Tag.Get("enums"); tag != "" && x.RequiredType().Kind() == reflect.String {
-				if err := validateEnumValue(tag, x.Value().(string), f.Name); err != nil {
-					errs = errors.Join(errs, err)
+			if t := x.RequiredType(); t.Kind() == reflect.Struct {
+				errs = errors.Join(errs, Struct(x.Ptr()))
+			} else if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct {
+				errs = errors.Join(errs, Struct(x.Value()))
+			} else if t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Pointer && t.Elem().Elem().Kind() == reflect.Struct {
+				v := reflect.ValueOf(x.Value())
+				for i := 0; i < v.Len(); i++ {
+					errs = errors.Join(errs, Struct(v.Index(i).Interface()))
+				}
+			} else if t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Struct {
+				v := reflect.ValueOf(x.Value())
+				for i := 0; i < v.Len(); i++ {
+					errs = errors.Join(errs, Struct(v.Index(i).Addr().Interface()))
 				}
 			}
-		} else if s, ok := fv.Interface().(string); ok {
-			if tag := f.Tag.Get("enums"); tag != "" {
-				if err := validateEnumValue(tag, s, f.Name); err != nil {
-					errs = errors.Join(errs, err)
-				}
+		} else if f.Type.Kind() == reflect.Struct {
+			errs = errors.Join(errs, Struct(fv.Addr().Interface()))
+		} else if f.Type.Kind() == reflect.Pointer && f.Type.Elem().Kind() == reflect.Struct {
+			errs = errors.Join(errs, Struct(fv.Interface()))
+		} else if f.Type.Kind() == reflect.Slice && f.Type.Elem().Kind() == reflect.Pointer && f.Type.Elem().Elem().Kind() == reflect.Struct {
+			for i := 0; i < fv.Len(); i++ {
+				errs = errors.Join(errs, Struct(fv.Index(i).Interface()))
+			}
+		} else if f.Type.Kind() == reflect.Slice && f.Type.Elem().Kind() == reflect.Struct {
+			for i := 0; i < fv.Len(); i++ {
+				errs = errors.Join(errs, Struct(fv.Index(i).Addr().Interface()))
 			}
 		}
 
