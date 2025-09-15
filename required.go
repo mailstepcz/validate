@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
+	"strings"
 	"unsafe"
 )
 
@@ -83,6 +85,7 @@ var (
 
 // Struct validates the provided argument which must be a pointer to a structure.
 // Any fields whose type is [Required] are checked.
+// Any fields which has enums tag, then value is checked.
 // The returned error is a multi-error containing the errors emitted for all misbehaving fields.
 //
 // Struct panics if the argument is ill-typed.
@@ -102,7 +105,28 @@ func Struct(x interface{}) error {
 			if !x.HasValue() {
 				errs = errors.Join(errs, fmt.Errorf("field '%s' in '%s' is required", f.Name, v.Type()))
 			}
+
+			if tag := f.Tag.Get("enums"); tag != "" && x.RequiredType().Kind() == reflect.String {
+				if err := validateEnumValue(tag, x.Value().(string), f.Name); err != nil {
+					errs = errors.Join(errs, err)
+				}
+			}
+		} else if s, ok := fv.Interface().(string); ok {
+			if tag := f.Tag.Get("enums"); tag != "" {
+				if err := validateEnumValue(tag, s, f.Name); err != nil {
+					errs = errors.Join(errs, err)
+				}
+			}
 		}
+
 	}
 	return errs
+}
+
+func validateEnumValue(tag, value, filedName string) error {
+	allowedValues := strings.Split(tag, ",")
+	if !slices.Contains(allowedValues, value) {
+		return fmt.Errorf("invalid enum value '%s' for field '%s', allowed values are '%s'", value, filedName, tag)
+	}
+	return nil
 }
