@@ -10,9 +10,11 @@ import (
 )
 
 type Person struct {
-	Name Required[string] `json:"name"`
-	Age  Required[int]    `json:"age"`
-	Type Required[string] `json:"type" enums:"ADMIN,USER"`
+	Name  Required[string] `json:"name"`
+	Age   Required[int]    `json:"age"`
+	Type  Required[string] `json:"type" enums:"ADMIN,USER"`
+	Brand string           `json:"brand" enums:"BMW,AUDI"`
+	Shoes *string          `json:"shoes" enums:"NIKE,PUMA"`
 }
 
 type Address struct {
@@ -55,13 +57,13 @@ func TestRequired(t *testing.T) {
 	req := require.New(t)
 
 	var p Person
-	err := json.Unmarshal([]byte(`{"name":"Saoirse","type":"ADMIN"}`), &p)
+	err := json.Unmarshal([]byte(`{"name":"Saoirse","type":"ADMIN","brand":"AUDI"}`), &p)
 	req.Nil(err)
 	err = Struct(&p)
 	req.NotNil(err)
 	testcond.Equal(t, "field 'Age' in 'validate.Person' is required", err.Error())
 
-	err = json.Unmarshal([]byte(`{"name":"Saoirse","age":25,"type":"ADMIN"}`), &p)
+	err = json.Unmarshal([]byte(`{"name":"Saoirse","age":25,"type":"ADMIN","brand":"BMW"}`), &p)
 	req.Nil(err)
 	err = Struct(&p)
 	req.Nil(err)
@@ -274,7 +276,7 @@ func TestRequiredEnums(t *testing.T) {
 	req := require.New(t)
 
 	var p Person
-	err := json.Unmarshal([]byte(`{"name":"Saoirse","age":25,"type":"ADMIN"}`), &p)
+	err := json.Unmarshal([]byte(`{"name":"Saoirse","age":25,"type":"ADMIN","brand":"BMW"}`), &p)
 	req.NoError(err)
 	err = Struct(&p)
 	req.NoError(err)
@@ -285,6 +287,17 @@ func TestRequiredEnums(t *testing.T) {
 	req.Error(err)
 	req.Contains(err.Error(), "invalid enum value 'SUPER_ADMIN' for field 'Type', allowed values are 'ADMIN,USER'")
 
+	err = json.Unmarshal([]byte(`{"name":"Saoirse","age":25,"type":"ADMIN","brand":"LEXUS"}`), &p)
+	req.NoError(err)
+	err = Struct(&p)
+	req.Error(err)
+	req.Contains(err.Error(), "invalid enum value 'LEXUS' for field 'Brand', allowed values are 'BMW,AUDI'")
+
+	err = json.Unmarshal([]byte(`{"name":"Saoirse","age":25,"type":"ADMIN","brand":"BMW","shoes":"ADIDAS"}`), &p)
+	req.NoError(err)
+	err = Struct(&p)
+	req.Error(err)
+	req.Contains(err.Error(), "invalid enum value 'ADIDAS' for field 'Shoes', allowed values are 'NIKE,PUMA'")
 }
 
 var gr interface{}
