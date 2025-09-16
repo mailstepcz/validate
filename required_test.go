@@ -10,8 +10,11 @@ import (
 )
 
 type Person struct {
-	Name Required[string] `json:"name"`
-	Age  Required[int]    `json:"age"`
+	Name  Required[string] `json:"name"`
+	Age   Required[int]    `json:"age"`
+	Type  Required[string] `json:"type" enums:"ADMIN,USER"`
+	Brand string           `json:"brand" enums:"BMW,AUDI"`
+	Shoes *string          `json:"shoes" enums:"NIKE,PUMA"`
 }
 
 type Address struct {
@@ -54,13 +57,13 @@ func TestRequired(t *testing.T) {
 	req := require.New(t)
 
 	var p Person
-	err := json.Unmarshal([]byte(`{"name":"Saoirse"}`), &p)
+	err := json.Unmarshal([]byte(`{"name":"Saoirse","type":"ADMIN","brand":"AUDI"}`), &p)
 	req.Nil(err)
 	err = Struct(&p)
 	req.NotNil(err)
 	testcond.Equal(t, "field 'Age' in 'validate.Person' is required", err.Error())
 
-	err = json.Unmarshal([]byte(`{"name":"Saoirse","age":25}`), &p)
+	err = json.Unmarshal([]byte(`{"name":"Saoirse","age":25,"type":"ADMIN","brand":"BMW"}`), &p)
 	req.Nil(err)
 	err = Struct(&p)
 	req.Nil(err)
@@ -70,7 +73,7 @@ func TestRequiredPtr(t *testing.T) {
 	req := require.New(t)
 
 	var p Person
-	err := json.Unmarshal([]byte(`{"name":"Saoirse"}`), &p)
+	err := json.Unmarshal([]byte(`{"name":"Saoirse","type":"ADMIN"}`), &p)
 	req.NoError(err)
 
 	testcond.Equal(t, p.Name.Ptr().(*string), (*string)(p.Name.UnsafePtr()))
@@ -269,11 +272,39 @@ func TestRequiredNested8Error(t *testing.T) {
 	req.Error(err)
 }
 
+func TestRequiredEnums(t *testing.T) {
+	req := require.New(t)
+
+	var p Person
+	err := json.Unmarshal([]byte(`{"name":"Saoirse","age":25,"type":"ADMIN","brand":"BMW"}`), &p)
+	req.NoError(err)
+	err = Struct(&p)
+	req.NoError(err)
+
+	err = json.Unmarshal([]byte(`{"name":"Saoirse","age":25,"type":"SUPER_ADMIN"}`), &p)
+	req.NoError(err)
+	err = Struct(&p)
+	req.Error(err)
+	req.Contains(err.Error(), "invalid enum value 'SUPER_ADMIN' for field 'Type', allowed values are 'ADMIN,USER'")
+
+	err = json.Unmarshal([]byte(`{"name":"Saoirse","age":25,"type":"ADMIN","brand":"LEXUS"}`), &p)
+	req.NoError(err)
+	err = Struct(&p)
+	req.Error(err)
+	req.Contains(err.Error(), "invalid enum value 'LEXUS' for field 'Brand', allowed values are 'BMW,AUDI'")
+
+	err = json.Unmarshal([]byte(`{"name":"Saoirse","age":25,"type":"ADMIN","brand":"BMW","shoes":"ADIDAS"}`), &p)
+	req.NoError(err)
+	err = Struct(&p)
+	req.Error(err)
+	req.Contains(err.Error(), "invalid enum value 'ADIDAS' for field 'Shoes', allowed values are 'NIKE,PUMA'")
+}
+
 var gr interface{}
 
 func BenchmarkWithValidation(b *testing.B) {
 	var lr interface{}
-	bs := []byte(`{"name":"Saoirse","age":25}`)
+	bs := []byte(`{"name":"Saoirse","age":25,"type":"ADMIN"}`)
 	for i := 0; i < b.N; i++ {
 		var p Person
 		if err := json.Unmarshal(bs, &p); err != nil {
@@ -289,7 +320,7 @@ func BenchmarkWithValidation(b *testing.B) {
 
 func BenchmarkWithoutValidation(b *testing.B) {
 	var lr interface{}
-	bs := []byte(`{"name":"Saoirse","age":25}`)
+	bs := []byte(`{"name":"Saoirse","age":25,"type":"ADMIN"}`)
 	for i := 0; i < b.N; i++ {
 		var p Person
 		if err := json.Unmarshal(bs, &p); err != nil {

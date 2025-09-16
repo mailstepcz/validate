@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
+	"strings"
 	"unsafe"
 )
 
@@ -83,6 +85,7 @@ var (
 
 // Struct validates the provided argument which must be a pointer to a structure.
 // Any fields whose type is [Required] are checked.
+// Any fields which has enums tag, then value is checked.
 // The returned error is a multi-error containing the errors emitted for all misbehaving fields.
 //
 // Struct panics if the argument is ill-typed.
@@ -120,6 +123,8 @@ func Struct(x interface{}) error {
 				for i := 0; i < v.Len(); i++ {
 					errs = errors.Join(errs, Struct(v.Index(i).Addr().Interface()))
 				}
+			} else if tag := f.Tag.Get("enums"); tag != "" && x.RequiredType().Kind() == reflect.String {
+				errs = errors.Join(errs, validateEnumValue(tag, x.Value().(string), f.Name))
 			}
 		} else if f.Type.Kind() == reflect.Struct {
 			errs = errors.Join(errs, Struct(fv.Addr().Interface()))
@@ -133,7 +138,20 @@ func Struct(x interface{}) error {
 			for i := 0; i < fv.Len(); i++ {
 				errs = errors.Join(errs, Struct(fv.Index(i).Addr().Interface()))
 			}
+		} else if tag := f.Tag.Get("enums"); tag != "" && f.Type.Kind() == reflect.String {
+			errs = errors.Join(errs, validateEnumValue(tag, fv.String(), f.Name))
+		} else if tag := f.Tag.Get("enums"); tag != "" && f.Type.Kind() == reflect.Pointer && f.Type.Elem().Kind() == reflect.String && !fv.IsNil() {
+			errs = errors.Join(errs, validateEnumValue(tag, fv.Elem().String(), f.Name))
 		}
+
 	}
 	return errs
+}
+
+func validateEnumValue(tag, value, filedName string) error {
+	allowedValues := strings.Split(tag, ",")
+	if !slices.Contains(allowedValues, value) {
+		return fmt.Errorf("invalid enum value '%s' for field '%s', allowed values are '%s'", value, filedName, tag)
+	}
+	return nil
 }
