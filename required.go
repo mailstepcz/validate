@@ -83,6 +83,14 @@ var (
 	_ RequiredIface    = (*Required[int])(nil)
 )
 
+// New return new required struct with given value.
+func New[T any](v T) Required[T] {
+	return Required[T]{
+		value: v,
+		valid: true,
+	}
+}
+
 // Struct validates the provided argument which must be a pointer to a structure.
 // Any fields whose type is [Required] are checked.
 // Any fields which has enums tag, then value is checked.
