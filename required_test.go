@@ -330,3 +330,35 @@ func BenchmarkWithoutValidation(b *testing.B) {
 	}
 	gr = lr
 }
+
+type marshalled struct {
+	Name Required[string] `json:"name"`
+	Age  Required[int]    `json:"age,omitzero"`
+}
+
+func TestMarshalJSON(t *testing.T) {
+	req := require.New(t)
+
+	b, err := json.Marshal(marshalled{Name: New("Fred"), Age: New(42)})
+	req.NoError(err)
+	req.Equal(`{"name":"Fred","age":42}`, string(b))
+
+	b, err = json.Marshal(marshalled{Name: New("Fred")})
+	req.NoError(err)
+	req.Equal(`{"name":"Fred"}`, string(b))
+
+	b, err = json.Marshal(marshalled{})
+	req.NoError(err)
+	req.Equal(`{"name":null}`, string(b))
+
+	b, err = json.Marshal(map[string]Required[string]{"name": New("Fred")})
+	req.NoError(err)
+	req.Equal(`{"name":"Fred"}`, string(b))
+}
+
+func TestIsZero(t *testing.T) {
+	req := require.New(t)
+
+	req.True(Required[string]{}.IsZero())
+	req.False(New("").IsZero())
+}

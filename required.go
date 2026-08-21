@@ -32,6 +32,18 @@ func (r *Required[T]) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (r Required[T]) MarshalJSON() ([]byte, error) {
+	if !r.valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(r.value)
+}
+
+// IsZero reports whether the instance holds no value.
+// It makes the `omitzero` JSON tag option omit unset fields entirely,
+// which matches the semantics of [Required] more closely than marshalling `null`.
+func (r Required[T]) IsZero() bool { return !r.valid }
+
 func (r *Required[T]) String() string {
 	if r.valid {
 		return fmt.Sprintf("%v", r.value)
@@ -79,6 +91,7 @@ var (
 	// ErrBadType indicates that the provided argument is ill-typed.
 	ErrBadType = errors.New("bad type")
 
+	_ json.Marshaler   = Required[int]{}
 	_ json.Unmarshaler = (*Required[int])(nil)
 	_ RequiredIface    = (*Required[int])(nil)
 )
